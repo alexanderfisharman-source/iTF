@@ -12,6 +12,8 @@ jobs:
         run: |
           curl -L -O https://github.com/xybp888/iOS-SDKs/releases/download/iOS26.2-SDKs/iPhoneOS26.2.sdk.zip
           unzip -q iPhoneOS26.2.sdk.zip
+          # Set proper SDK permissions
+          chmod -R 755 iPhoneOS26.2.sdk
 
       - name: Compile C++ Logic
         run: |
@@ -30,23 +32,37 @@ jobs:
             -parse-as-library \
             -Xcc -fno-implicit-modules \
             -Xcc -fno-modules \
+            -Xlinker -rpath \
+            -Xlinker @executable_path/Frameworks \
+            -Xlinker -rpath \
+            -Xlinker @loader_path/Frameworks \
             src/main.swift src/ui/TerminalView.swift build/Shell.o \
-            -o build/iTF.app/iTF
+            -o build/iTF.app/iTF 2>&1 | tee build_output.log
 
       - name: Finalize .app Bundle
         run: |
+          mkdir -p build/iTF.app
           cp resources/Info.plist build/iTF.app/Info.plist
           cp resources/AppIcon.png build/iTF.app/AppIcon.png
           echo -n "APPL????" > build/iTF.app/PkgInfo
+          chmod +x build/iTF.app/iTF
 
       - name: Create IPA
         run: |
-          mkdir Payload
+          mkdir -p Payload
           cp -r build/iTF.app Payload/
           zip -r iTF.ipa Payload
+          rm -rf Payload
 
       - name: Upload Finished IPA
         uses: actions/upload-artifact@v4
         with:
           name: iTF-Sideload-Ready
           path: iTF.ipa
+
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: build_output.log
