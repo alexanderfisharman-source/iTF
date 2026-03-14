@@ -1,4 +1,4 @@
-name: iTF Cloud Compiler
+name: iTF Full Cloud Build
 on: [push]
 
 jobs:
@@ -8,18 +8,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # No more SDK downloading! We use the runner's built-in SDK.
+      - name: Create Build Directories
+        run: mkdir -p build/iTF.app
 
-      - name: Compile C++ Logic
+      - name: Compile C++ (Core & Wrapper)
         run: |
-          mkdir -p build/iTF.app
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           
-          clang++ -target arm64-apple-ios15.0 \
-            -isysroot "$SDK_PATH" \
+          # Compile the logic
+          clang++ -target arm64-apple-ios15.0 -isysroot "$SDK_PATH" \
             -std=c++17 -I include -c src/shell/Shell.cpp -o build/Shell.o
+            
+          # Compile the bridge
+          clang++ -target arm64-apple-ios15.0 -isysroot "$SDK_PATH" \
+            -std=c++17 -I include -c src/shell/ShellWrapper.cpp -o build/ShellWrapper.o
 
-      - name: Compile Swift & Link Binary
+      - name: Compile Swift & Link Everything
         run: |
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           
@@ -27,17 +31,15 @@ jobs:
             -sdk "$SDK_PATH" \
             -import-objc-header include/Bridge.h \
             -parse-as-library \
-            src/main.swift src/ui/TerminalView.swift build/Shell.o \
+            src/main.swift src/ui/TerminalView.swift \
+            build/Shell.o build/ShellWrapper.o \
             -o build/iTF.app/iTF
 
-      - name: Finalize .app Bundle
+      - name: Bundle & Package
         run: |
           cp resources/Info.plist build/iTF.app/Info.plist
           cp resources/AppIcon.png build/iTF.app/AppIcon.png
           echo -n "APPL????" > build/iTF.app/PkgInfo
-
-      - name: Create IPA
-        run: |
           mkdir Payload
           cp -r build/iTF.app Payload/
           zip -r iTF.ipa Payload
