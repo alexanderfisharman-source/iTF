@@ -24,8 +24,12 @@ jobs:
         run: |
           swiftc -target arm64-apple-ios15.0 \
             -sdk ./iPhoneOS26.2.sdk \
+            -I ./iPhoneOS26.2.sdk/usr/include \
+            -L ./iPhoneOS26.2.sdk/usr/lib \
             -import-objc-header include/Bridge.h \
             -parse-as-library \
+            -Xcc -fno-implicit-modules \
+            -Xcc -fno-modules \
             src/main.swift src/ui/TerminalView.swift build/Shell.o \
             -o build/iTF.app/iTF
 
