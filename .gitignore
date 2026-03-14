@@ -1,0 +1,4 @@
+build/
+*.sdk/
+*.zip
+.DS_Store

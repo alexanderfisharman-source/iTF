@@ -1,0 +1,4 @@
+module iTFShell {
+    header "Bridge.h"
+    export *
+}

@@ -1,0 +1,48 @@
+name: iTF Cloud Compiler
+on: [push]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get iOS SDK
+        run: |
+          curl -L -O https://github.com/xybp888/iOS-SDKs/releases/download/iOS26.2-SDKs/iPhoneOS26.2.sdk.zip
+          unzip -q iPhoneOS26.2.sdk.zip
+
+      - name: Compile C++ Logic
+        run: |
+          mkdir -p build/iTF.app
+          clang++ -target arm64-apple-ios15.0 \
+            -isysroot ./iPhoneOS26.2.sdk \
+            -std=c++17 -I include -c src/shell/Shell.cpp -o build/Shell.o
+
+      - name: Compile Swift & Link Binary
+        run: |
+          swiftc -target arm64-apple-ios15.0 \
+            -sdk ./iPhoneOS26.2.sdk \
+            -import-objc-header include/Bridge.h \
+            -parse-as-library \
+            src/main.swift src/ui/TerminalView.swift build/Shell.o \
+            -o build/iTF.app/iTF
+
+      - name: Finalize .app Bundle
+        run: |
+          cp resources/Info.plist build/iTF.app/Info.plist
+          cp resources/AppIcon.png build/iTF.app/AppIcon.png
+          echo -n "APPL????" > build/iTF.app/PkgInfo
+
+      - name: Create IPA
+        run: |
+          mkdir Payload
+          cp -r build/iTF.app Payload/
+          zip -r iTF.ipa Payload
+
+      - name: Upload Finished IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: iTF-Sideload-Ready
+          path: iTF.ipa
