@@ -11,22 +11,23 @@ jobs:
       - name: Create Build Directories
         run: mkdir -p build/iTF.app
 
-      - name: Compile C++ (Core & Wrapper)
+      - name: Compile C++ and Objective-C++
         run: |
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           
-          # Compile the logic
+          # 1. Compile the core C++ logic
           clang++ -target arm64-apple-ios15.0 -isysroot "$SDK_PATH" \
             -std=c++17 -I include -c src/shell/Shell.cpp -o build/Shell.o
             
-          # Compile the bridge
+          # 2. Compile the Bridge Wrapper (Now using .mm for Objective-C++ support)
           clang++ -target arm64-apple-ios15.0 -isysroot "$SDK_PATH" \
-            -std=c++17 -I include -c src/shell/ShellWrapper.cpp -o build/ShellWrapper.o
+            -std=c++17 -I include -c src/shell/ShellWrapper.mm -o build/ShellWrapper.o
 
       - name: Compile Swift & Link Everything
         run: |
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           
+          # Link the Swift files and the two compiled .o files together
           swiftc -target arm64-apple-ios15.0 \
             -sdk "$SDK_PATH" \
             -import-objc-header include/Bridge.h \
@@ -37,9 +38,14 @@ jobs:
 
       - name: Bundle & Package
         run: |
+          # Copy resources into the .app folder
           cp resources/Info.plist build/iTF.app/Info.plist
           cp resources/AppIcon.png build/iTF.app/AppIcon.png
+          
+          # Create the required PkgInfo file
           echo -n "APPL????" > build/iTF.app/PkgInfo
+          
+          # Prepare the Payload directory for the .ipa
           mkdir Payload
           cp -r build/iTF.app Payload/
           zip -r iTF.ipa Payload
